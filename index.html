@@ -1,0 +1,657 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#1a73e8">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Empréstimos">
+  <meta name="description" content="Controle de empréstimos pessoais com Google Drive">
+  <title>Empréstimos</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" type="image/png" href="icon-192.png">
+  <link rel="apple-touch-icon" href="icon-192.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --green: #1e7e5a;
+      --green-light: #e8f5ee;
+      --green-mid: #34a853;
+      --red: #c0392b;
+      --red-light: #fdecea;
+      --blue: #1a73e8;
+      --blue-light: #e8f0fe;
+      --amber: #f59e0b;
+      --amber-light: #fef3c7;
+      --gray-50: #f8f9fa;
+      --gray-100: #f1f3f4;
+      --gray-200: #e8eaed;
+      --gray-400: #9aa0a6;
+      --gray-600: #5f6368;
+      --gray-900: #202124;
+      --white: #ffffff;
+      --radius: 12px;
+      --radius-sm: 8px;
+      --shadow: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.06);
+      --shadow-md: 0 4px 12px rgba(0,0,0,0.10);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+    html, body { height: 100%; background: var(--gray-50); font-family: 'DM Sans', sans-serif; color: var(--gray-900); overscroll-behavior: none; }
+
+    /* Layout */
+    #app { display: flex; flex-direction: column; height: 100vh; max-width: 500px; margin: 0 auto; background: var(--white); position: relative; }
+    .topbar { background: var(--white); border-bottom: 1px solid var(--gray-200); padding: 14px 16px 10px; position: sticky; top: 0; z-index: 10; }
+    .topbar-row { display: flex; align-items: center; justify-content: space-between; }
+    .topbar-title { font-size: 20px; font-weight: 600; color: var(--gray-900); letter-spacing: -0.3px; }
+    .topbar-sub { font-size: 12px; color: var(--gray-400); margin-top: 1px; }
+    .scrollarea { flex: 1; overflow-y: auto; padding: 0 16px 100px; -webkit-overflow-scrolling: touch; }
+
+    /* Buttons */
+    .btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px; border-radius: var(--radius-sm); border: none; font-family: 'DM Sans', sans-serif; font-size: 14px; font-weight: 500; cursor: pointer; transition: opacity 0.15s, transform 0.1s; }
+    .btn:active { transform: scale(0.97); }
+    .btn-primary { background: var(--blue); color: white; }
+    .btn-success { background: var(--green); color: white; }
+    .btn-danger { background: var(--red-light); color: var(--red); }
+    .btn-ghost { background: var(--gray-100); color: var(--gray-600); }
+    .btn-icon { width: 40px; height: 40px; padding: 0; justify-content: center; border-radius: 50%; }
+    .fab { position: fixed; bottom: 24px; right: 50%; transform: translateX(50%); max-width: calc(500px - 32px); width: calc(100% - 32px); background: var(--blue); color: white; border: none; border-radius: var(--radius); padding: 16px; font-family: 'DM Sans', sans-serif; font-size: 16px; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; box-shadow: var(--shadow-md); transition: opacity 0.15s; z-index: 9; }
+    .fab:active { opacity: 0.85; }
+
+    /* Drive banner */
+    .drive-banner { margin: 12px 0; background: var(--gray-50); border: 1px solid var(--gray-200); border-radius: var(--radius-sm); padding: 10px 14px; display: flex; align-items: center; gap: 10px; }
+    .drive-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+    .drive-dot.on { background: var(--green-mid); }
+    .drive-dot.off { background: var(--gray-400); }
+    .drive-text { flex: 1; font-size: 13px; color: var(--gray-600); }
+    .drive-btn { font-size: 12px; padding: 6px 12px; white-space: nowrap; }
+
+    /* Metrics */
+    .metrics { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 12px 0; }
+    .metric { background: var(--gray-50); border: 1px solid var(--gray-200); border-radius: var(--radius); padding: 14px; }
+    .metric-label { font-size: 11px; color: var(--gray-400); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
+    .metric-value { font-size: 20px; font-weight: 600; font-family: 'DM Mono', monospace; }
+    .metric-value.green { color: var(--green); }
+    .metric-value.red { color: var(--red); }
+    .metric-value.blue { color: var(--blue); }
+
+    /* Tabs */
+    .tabs { display: flex; gap: 4px; overflow-x: auto; padding-bottom: 2px; margin: 8px 0; scrollbar-width: none; }
+    .tabs::-webkit-scrollbar { display: none; }
+    .tab { flex-shrink: 0; padding: 7px 14px; border-radius: 20px; border: none; font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 500; cursor: pointer; background: var(--gray-100); color: var(--gray-600); transition: all 0.15s; }
+    .tab.active { background: var(--blue-light); color: var(--blue); }
+
+    /* Cards */
+    .loan-card { background: var(--white); border: 1px solid var(--gray-200); border-radius: var(--radius); padding: 14px; margin-bottom: 10px; cursor: pointer; transition: box-shadow 0.15s; }
+    .loan-card:active { box-shadow: var(--shadow); }
+    .card-row { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; }
+    .card-name { font-size: 15px; font-weight: 600; color: var(--gray-900); }
+    .card-meta { font-size: 12px; color: var(--gray-400); margin-top: 2px; }
+    .card-obs { font-size: 12px; color: var(--gray-600); font-style: italic; margin-top: 2px; }
+    .card-amount { font-size: 17px; font-weight: 600; font-family: 'DM Mono', monospace; text-align: right; }
+    .card-amount.lent { color: var(--blue); }
+    .card-amount.owing { color: var(--red); }
+    .card-principal { font-size: 11px; color: var(--gray-400); text-align: right; margin-top: 2px; }
+    .progress { height: 4px; background: var(--gray-200); border-radius: 2px; margin-top: 10px; overflow: hidden; }
+    .progress-fill { height: 100%; background: var(--green-mid); border-radius: 2px; transition: width 0.3s; }
+    .tags { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; align-items: center; }
+    .tag { font-size: 11px; font-weight: 500; padding: 3px 8px; border-radius: 20px; }
+    .tag-active { background: var(--amber-light); color: var(--amber); }
+    .tag-paid { background: var(--green-light); color: var(--green); }
+    .tag-tipo-e { background: var(--blue-light); color: var(--blue); }
+    .tag-tipo-p { background: var(--red-light); color: var(--red); }
+    .pay-btn { font-size: 12px; padding: 5px 12px; }
+    .modo-btn { flex:1; padding: 10px 8px; border-radius: var(--radius-sm); border: 1.5px solid var(--gray-200); background: var(--white); color: var(--gray-600); font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 500; cursor: pointer; transition: all 0.15s; }
+    .modo-btn.active { border-color: var(--blue); background: var(--blue-light); color: var(--blue); }
+
+    /* Empty */
+    .empty { text-align: center; padding: 48px 0; color: var(--gray-400); }
+    .empty-icon { font-size: 48px; margin-bottom: 12px; }
+    .empty-text { font-size: 15px; }
+
+    /* Modal */
+    .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 100; display: flex; align-items: flex-end; }
+    .modal { background: var(--white); border-radius: var(--radius) var(--radius) 0 0; width: 100%; max-height: 92vh; overflow-y: auto; padding: 20px 16px 40px; animation: slideUp 0.25s ease; }
+    .modal-center { align-items: center; padding: 16px; }
+    .modal-center .modal { border-radius: var(--radius); max-width: 420px; margin: 0 auto; }
+    @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+    .modal-handle { width: 36px; height: 4px; background: var(--gray-200); border-radius: 2px; margin: 0 auto 16px; }
+    .modal-title { font-size: 18px; font-weight: 600; margin-bottom: 16px; color: var(--gray-900); }
+    .form-group { margin-bottom: 14px; }
+    .form-label { font-size: 12px; color: var(--gray-600); font-weight: 500; margin-bottom: 5px; display: block; }
+    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    input, select, textarea {
+      width: 100%; padding: 12px; border: 1.5px solid var(--gray-200); border-radius: var(--radius-sm);
+      background: var(--white); color: var(--gray-900); font-size: 15px; font-family: 'DM Sans', sans-serif;
+      outline: none; transition: border-color 0.15s; appearance: none; -webkit-appearance: none;
+    }
+    input:focus, select:focus, textarea:focus { border-color: var(--blue); }
+    textarea { resize: none; min-height: 72px; }
+    .modal-actions { display: flex; gap: 8px; margin-top: 16px; }
+    .modal-actions .btn { flex: 1; justify-content: center; padding: 14px; font-size: 15px; border-radius: var(--radius); }
+
+    /* Detail */
+    .detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 14px; }
+    .detail-metric { background: var(--gray-50); border-radius: var(--radius-sm); padding: 12px; }
+    .detail-metric .metric-value { font-size: 16px; }
+    .payment-row { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--gray-100); font-size: 13px; }
+    .payment-row:last-child { border-bottom: none; }
+    .payment-date { color: var(--gray-600); }
+    .payment-val { color: var(--green); font-weight: 600; font-family: 'DM Mono', monospace; }
+
+    /* Toast */
+    .toast { position: fixed; top: 16px; left: 50%; transform: translateX(-50%); background: var(--gray-900); color: white; padding: 10px 18px; border-radius: 24px; font-size: 13px; font-weight: 500; z-index: 999; animation: toastIn 0.2s ease; white-space: nowrap; }
+    @keyframes toastIn { from { opacity: 0; transform: translateX(-50%) translateY(-8px); } to { opacity: 1; transform: translateX(-50%) translateY(0); } }
+  </style>
+</head>
+<body>
+<div id="app">
+  <div class="topbar">
+    <div class="topbar-row">
+      <div>
+        <div class="topbar-title">💰 Empréstimos</div>
+        <div class="topbar-sub" id="topSub">Controle pessoal</div>
+      </div>
+      <button class="btn btn-icon btn-ghost" onclick="handleAuth()" id="driveBtn" title="Google Drive">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+          <path d="M6.5 20L1 11L8 3.5H16L23 11L17.5 20H6.5Z" stroke="#5f6368" stroke-width="1.5" fill="none"/>
+          <path d="M1 11H23M8 3.5L12 11M16 3.5L12 11M6.5 20L12 11M17.5 20L12 11" stroke="#5f6368" stroke-width="1.5"/>
+        </svg>
+      </button>
+    </div>
+  </div>
+
+  <div class="scrollarea">
+    <div class="drive-banner" id="driveBanner">
+      <div class="drive-dot off" id="driveDot"></div>
+      <div class="drive-text" id="driveText">Não conectado ao Google Drive</div>
+      <button class="btn btn-primary drive-btn" onclick="handleAuth()" id="driveConnectBtn">Conectar</button>
+    </div>
+
+    <div class="metrics" id="metrics"></div>
+
+    <div class="tabs" id="tabs">
+      <button class="tab active" onclick="setTab('ativos')" id="t-ativos">Ativos</button>
+      <button class="tab" onclick="setTab('emprestei')" id="t-emprestei">Emprestei</button>
+      <button class="tab" onclick="setTab('peguei')" id="t-peguei">Peguei</button>
+      <button class="tab" onclick="setTab('quitados')" id="t-quitados">Quitados</button>
+    </div>
+
+    <div id="loanList"></div>
+  </div>
+
+  <button class="fab" onclick="openAdd()">+ Novo empréstimo</button>
+</div>
+
+<!-- Modal Adicionar/Editar -->
+<div id="modalAdd" class="modal-overlay" style="display:none;" onclick="if(event.target===this)closeAdd()">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title" id="modalAddTitle">Novo empréstimo</div>
+    <div class="form-group">
+      <label class="form-label">Tipo</label>
+      <select id="fTipo">
+        <option value="emprestei">Emprestei (sou o credor)</option>
+        <option value="peguei">Peguei emprestado (sou o devedor)</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Nome da pessoa</label>
+      <input type="text" id="fPessoa" placeholder="Ex: João Silva" autocomplete="off">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Valor emprestado (R$)</label>
+      <input type="number" id="fValor" placeholder="0,00" step="0.01" inputmode="decimal" oninput="atualizarPreview()">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Modo de cobrança</label>
+      <div style="display:flex;gap:8px;margin-top:4px;">
+        <button type="button" class="modo-btn active" id="btnModoJuros" onclick="setModo('juros')">% Juros mensais</button>
+        <button type="button" class="modo-btn" id="btnModoFixo" onclick="setModo('fixo')">R$ Valor combinado</button>
+      </div>
+    </div>
+    <div id="campoJuros" class="form-group">
+      <label class="form-label">Juros % ao mês</label>
+      <input type="number" id="fJuros" placeholder="0" step="0.1" value="0" inputmode="decimal" oninput="atualizarPreview()">
+    </div>
+    <div id="campoFixo" class="form-group" style="display:none;">
+      <label class="form-label">Total a receber/pagar (R$)</label>
+      <input type="number" id="fValorFixo" placeholder="Ex: 600,00" step="0.01" inputmode="decimal" oninput="atualizarPreview()">
+    </div>
+    <div id="previewCobranca" style="display:none;background:var(--blue-light);border-radius:var(--radius-sm);padding:10px 12px;font-size:13px;color:var(--blue);margin-bottom:4px;"></div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Data</label>
+        <input type="date" id="fData">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Vencimento</label>
+        <input type="date" id="fVencimento">
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Parcelas</label>
+      <input type="number" id="fParcelas" min="1" value="1" inputmode="numeric">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Observação</label>
+      <textarea id="fObs" placeholder="Motivo, garantias..."></textarea>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeAdd()">Cancelar</button>
+      <button class="btn btn-primary" onclick="salvarEmprestimo()">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Pagamento -->
+<div id="modalPag" class="modal-overlay" style="display:none;" onclick="if(event.target===this)this.style.display='none'">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title">Registrar pagamento</div>
+    <div id="pagInfo" style="font-size:14px;color:var(--gray-600);margin-bottom:14px;"></div>
+    <div class="form-group">
+      <label class="form-label">Valor pago (R$)</label>
+      <input type="number" id="pValor" step="0.01" inputmode="decimal">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Data</label>
+      <input type="date" id="pData">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Observação</label>
+      <input type="text" id="pObs" placeholder="Opcional">
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="document.getElementById('modalPag').style.display='none'">Cancelar</button>
+      <button class="btn btn-success" onclick="salvarPagamento()">Confirmar pagamento</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Detalhes -->
+<div id="modalDet" class="modal-overlay" style="display:none;" onclick="if(event.target===this)this.style.display='none'">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+      <div class="modal-title" id="detNome" style="margin:0;"></div>
+      <button class="btn btn-icon btn-ghost" onclick="document.getElementById('modalDet').style.display='none'">✕</button>
+    </div>
+    <div id="detBody"></div>
+  </div>
+</div>
+
+<div id="toastArea"></div>
+
+<script>
+// ── CONFIG ─────────────────────────────────────────────────────────────
+const CLIENT_ID = 'SEU_GOOGLE_CLIENT_ID_AQUI'; // ← substitua aqui
+const FILE_NAME = 'emprestimos_pessoais.json';
+const SCOPES    = 'https://www.googleapis.com/auth/drive.appdata';
+
+// ── ESTADO ─────────────────────────────────────────────────────────────
+let dados = { emprestimos: [] };
+let fileId = null;
+let tab = 'ativos';
+let editId = null;
+let pagId  = null;
+let detId  = null;
+let gapiOk = false, gisOk = false, tokenClient, connected = false;
+
+// ── UTILS ───────────────────────────────────────────────────────────────
+const fmt  = v => 'R$\u00a0' + Number(v).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
+const fmtD = d => d ? new Date(d+'T12:00').toLocaleDateString('pt-BR') : '—';
+const uid  = () => Date.now().toString(36) + Math.random().toString(36).slice(2);
+
+function monthsDiff(d1, d2) {
+  const a = new Date(d1), b = new Date(d2);
+  return Math.max(0, (b.getFullYear()-a.getFullYear())*12 + b.getMonth()-a.getMonth());
+}
+function calcTotal(l) {
+  if (l.modo==='fixo') return parseFloat(l.valorFixo)||parseFloat(l.valor);
+  const j = parseFloat(l.juros)||0;
+  if (!j) return parseFloat(l.valor);
+  return parseFloat(l.valor) * Math.pow(1+j/100, Math.max(1,monthsDiff(l.data, new Date().toISOString().slice(0,10))));
+}
+function totalPago(l) { return (l.pagamentos||[]).reduce((s,p)=>s+parseFloat(p.valor),0); }
+function saldo(l)     { return Math.max(0, calcTotal(l) - totalPago(l)); }
+function quitado(l)   { return saldo(l) < 0.01; }
+
+function toast(msg, dur=2500) {
+  const el = document.createElement('div');
+  el.className = 'toast';
+  el.textContent = msg;
+  document.getElementById('toastArea').appendChild(el);
+  setTimeout(()=>el.remove(), dur);
+}
+
+// ── RENDER ──────────────────────────────────────────────────────────────
+function render() { renderMetrics(); renderList(); }
+
+function renderMetrics() {
+  const ls = dados.emprestimos;
+  const aReceber = ls.filter(l=>l.tipo==='emprestei'&&!quitado(l)).reduce((s,l)=>s+saldo(l),0);
+  const aPagar   = ls.filter(l=>l.tipo==='peguei'&&!quitado(l)).reduce((s,l)=>s+saldo(l),0);
+  document.getElementById('metrics').innerHTML = `
+    <div class="metric"><div class="metric-label">A receber</div><div class="metric-value green">${fmt(aReceber)}</div></div>
+    <div class="metric"><div class="metric-label">A pagar</div><div class="metric-value red">${fmt(aPagar)}</div></div>
+  `;
+}
+
+function renderList() {
+  let ls = dados.emprestimos;
+  if (tab==='emprestei') ls = ls.filter(l=>l.tipo==='emprestei'&&!quitado(l));
+  else if (tab==='peguei') ls = ls.filter(l=>l.tipo==='peguei'&&!quitado(l));
+  else if (tab==='quitados') ls = ls.filter(quitado);
+  else ls = ls.filter(l=>!quitado(l));
+
+  const el = document.getElementById('loanList');
+  if (!ls.length) {
+    el.innerHTML = '<div class="empty"><div class="empty-icon">📭</div><div class="empty-text">Nenhum empréstimo aqui</div></div>';
+    return;
+  }
+  el.innerHTML = ls.map(l => {
+    const tot = calcTotal(l), pago = totalPago(l), sal = saldo(l);
+    const pct = Math.min(100, Math.round(pago/tot*100))||0;
+    const q = quitado(l);
+    const amtCls = l.tipo==='emprestei' ? 'lent' : 'owing';
+    const tipoTag = l.tipo==='emprestei'
+      ? '<span class="tag tag-tipo-e">↑ Emprestei</span>'
+      : '<span class="tag tag-tipo-p">↓ Peguei</span>';
+    const jStr = l.modo==='fixo'
+      ? ` · combinado ${fmt(l.valorFixo)}`
+      : l.juros>0 ? ` · ${l.juros}% a.m.` : '';
+    const vStr = l.vencimento ? ` · vence ${fmtD(l.vencimento)}` : '';
+    return `<div class="loan-card" onclick="abrirDetalhes('${l.id}')">
+      <div class="card-row">
+        <div style="flex:1;min-width:0;">
+          <div class="card-name">${l.pessoa}</div>
+          <div class="card-meta">${fmtD(l.data)}${jStr}${vStr}</div>
+          ${l.obs?`<div class="card-obs">${l.obs}</div>`:''}
+        </div>
+        <div>
+          <div class="card-amount ${amtCls}">${fmt(sal)}</div>
+          <div class="card-principal">de ${fmt(parseFloat(l.valor))}</div>
+        </div>
+      </div>
+      <div class="progress"><div class="progress-fill" style="width:${pct}%"></div></div>
+      <div class="tags" onclick="event.stopPropagation()">
+        ${tipoTag}
+        <span class="tag ${q?'tag-paid':'tag-active'}">${q?'✓ Quitado':'Em aberto'}</span>
+        ${!q?`<button class="btn btn-success pay-btn" onclick="event.stopPropagation();abrirPagamento('${l.id}')">💵 Pagar</button>`:''}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function setTab(t) {
+  tab = t;
+  document.querySelectorAll('.tab').forEach(b=>b.classList.remove('active'));
+  document.getElementById('t-'+t).classList.add('active');
+  renderList();
+}
+
+// ── MODO DE COBRANÇA ────────────────────────────────────────────────────
+let modoCobranca = 'juros';
+function setModo(m) {
+  modoCobranca = m;
+  document.getElementById('btnModoJuros').classList.toggle('active', m==='juros');
+  document.getElementById('btnModoFixo').classList.toggle('active', m==='fixo');
+  document.getElementById('campoJuros').style.display = m==='juros' ? '' : 'none';
+  document.getElementById('campoFixo').style.display  = m==='fixo'  ? '' : 'none';
+  atualizarPreview();
+}
+function atualizarPreview() {
+  const val = parseFloat(document.getElementById('fValor').value)||0;
+  const prev = document.getElementById('previewCobranca');
+  if (!val) { prev.style.display='none'; return; }
+  let msg = '';
+  if (modoCobranca==='juros') {
+    const j = parseFloat(document.getElementById('fJuros').value)||0;
+    if (j>0) {
+      const em1mes = val * Math.pow(1+j/100, 1);
+      const em3mes = val * Math.pow(1+j/100, 3);
+      msg = `📊 Em 1 mês: ${fmt(em1mes)} · Em 3 meses: ${fmt(em3mes)}`;
+    } else {
+      msg = `Sem juros — total a receber: ${fmt(val)}`;
+    }
+  } else {
+    const fixo = parseFloat(document.getElementById('fValorFixo').value)||0;
+    if (fixo>0 && val>0) {
+      const lucro = fixo - val;
+      const pct = ((lucro/val)*100).toFixed(1);
+      msg = `💰 Lucro combinado: ${fmt(lucro)} (${pct}% sobre o valor)`;
+    } else {
+      msg = `Digite o valor total combinado acima`;
+    }
+  }
+  prev.style.display = 'block';
+  prev.textContent = msg;
+}
+
+// ── MODAL ADD ───────────────────────────────────────────────────────────
+function openAdd(id) {
+  editId = id||null;
+  document.getElementById('modalAddTitle').textContent = id ? 'Editar empréstimo' : 'Novo empréstimo';
+  if (!id) {
+    document.getElementById('fTipo').value='emprestei';
+    document.getElementById('fPessoa').value='';
+    document.getElementById('fValor').value='';
+    document.getElementById('fJuros').value='0';
+    document.getElementById('fValorFixo').value='';
+    document.getElementById('fParcelas').value='1';
+    document.getElementById('fObs').value='';
+    document.getElementById('fData').value=new Date().toISOString().slice(0,10);
+    document.getElementById('fVencimento').value='';
+    setModo('juros');
+  } else {
+    const l=dados.emprestimos.find(x=>x.id===id);
+    document.getElementById('fTipo').value=l.tipo;
+    document.getElementById('fPessoa').value=l.pessoa;
+    document.getElementById('fValor').value=l.valor;
+    document.getElementById('fJuros').value=l.juros||0;
+    document.getElementById('fValorFixo').value=l.valorFixo||'';
+    document.getElementById('fData').value=l.data;
+    document.getElementById('fVencimento').value=l.vencimento||'';
+    document.getElementById('fParcelas').value=l.parcelas||1;
+    document.getElementById('fObs').value=l.obs||'';
+    setModo(l.modo||'juros');
+  }
+  document.getElementById('modalAdd').style.display='flex';
+}
+function closeAdd() { document.getElementById('modalAdd').style.display='none'; }
+
+function salvarEmprestimo() {
+  const pessoa = document.getElementById('fPessoa').value.trim();
+  const valor  = parseFloat(document.getElementById('fValor').value);
+  if (!pessoa||!valor) { toast('⚠️ Preencha nome e valor'); return; }
+  if (modoCobranca==='fixo') {
+    const fixo = parseFloat(document.getElementById('fValorFixo').value);
+    if (!fixo||fixo<=valor) { toast('⚠️ Valor combinado deve ser maior que o emprestado'); return; }
+  }
+  const loan = {
+    id: editId||uid(),
+    tipo: document.getElementById('fTipo').value,
+    pessoa, valor,
+    modo: modoCobranca,
+    juros: modoCobranca==='juros' ? (parseFloat(document.getElementById('fJuros').value)||0) : 0,
+    valorFixo: modoCobranca==='fixo' ? (parseFloat(document.getElementById('fValorFixo').value)||0) : null,
+    data: document.getElementById('fData').value,
+    vencimento: document.getElementById('fVencimento').value||null,
+    parcelas: parseInt(document.getElementById('fParcelas').value)||1,
+    obs: document.getElementById('fObs').value.trim(),
+    pagamentos: editId?(dados.emprestimos.find(x=>x.id===editId)||{}).pagamentos||[]: [],
+    criadoEm: editId?(dados.emprestimos.find(x=>x.id===editId)||{}).criadoEm:new Date().toISOString()
+  };
+  if (editId) dados.emprestimos=dados.emprestimos.map(l=>l.id===editId?loan:l);
+  else dados.emprestimos.unshift(loan);
+  closeAdd();
+  render();
+  salvarDrive();
+  toast(editId?'✅ Atualizado!':'✅ Empréstimo salvo!');
+}
+
+// ── PAGAMENTO ───────────────────────────────────────────────────────────
+function abrirPagamento(id) {
+  pagId=id;
+  const l=dados.emprestimos.find(x=>x.id===id);
+  document.getElementById('pagInfo').innerHTML=`<strong>${l.pessoa}</strong> — Saldo: <strong style="color:var(--red)">${fmt(saldo(l))}</strong>`;
+  document.getElementById('pValor').value=saldo(l).toFixed(2);
+  document.getElementById('pData').value=new Date().toISOString().slice(0,10);
+  document.getElementById('pObs').value='';
+  document.getElementById('modalPag').style.display='flex';
+}
+function salvarPagamento() {
+  const val=parseFloat(document.getElementById('pValor').value);
+  if (!val) { toast('⚠️ Informe o valor'); return; }
+  const l=dados.emprestimos.find(x=>x.id===pagId);
+  if (!l.pagamentos) l.pagamentos=[];
+  l.pagamentos.push({id:uid(),valor:val,data:document.getElementById('pData').value,obs:document.getElementById('pObs').value});
+  document.getElementById('modalPag').style.display='none';
+  render();
+  salvarDrive();
+  toast('✅ Pagamento registrado!');
+}
+
+// ── DETALHES ────────────────────────────────────────────────────────────
+function abrirDetalhes(id) {
+  detId=id;
+  const l=dados.emprestimos.find(x=>x.id===id);
+  document.getElementById('detNome').textContent=l.pessoa;
+  const tot=calcTotal(l),pago=totalPago(l),sal=saldo(l);
+  const pct=Math.min(100,Math.round(pago/tot*100))||0;
+  const q=quitado(l);
+  const pagRows=(l.pagamentos||[]).length
+    ? (l.pagamentos||[]).map(p=>`<div class="payment-row"><span class="payment-date">${fmtD(p.data)}${p.obs?' · '+p.obs:''}</span><span class="payment-val">${fmt(p.valor)}</span></div>`).join('')
+    : '<div style="font-size:13px;color:var(--gray-400);padding:8px 0;">Nenhum pagamento ainda</div>';
+  document.getElementById('detBody').innerHTML=`
+    <div class="detail-grid">
+      <div class="detail-metric"><div class="metric-label">Principal</div><div class="metric-value">${fmt(l.valor)}</div></div>
+      <div class="detail-metric"><div class="metric-label">Com juros</div><div class="metric-value blue">${fmt(tot)}</div></div>
+      <div class="detail-metric"><div class="metric-label">Pago</div><div class="metric-value green">${fmt(pago)}</div></div>
+      <div class="detail-metric"><div class="metric-label">Saldo</div><div class="metric-value red">${fmt(sal)}</div></div>
+    </div>
+    <div class="progress" style="margin-bottom:6px;"><div class="progress-fill" style="width:${pct}%"></div></div>
+    <div style="font-size:12px;color:var(--gray-400);margin-bottom:14px;">${pct}% quitado</div>
+    ${l.modo==='fixo'
+      ? `<div style="font-size:13px;color:var(--gray-600);margin-bottom:10px;">💰 Valor combinado: ${fmt(l.valorFixo)} (lucro: ${fmt(l.valorFixo - l.valor)})</div>`
+      : l.juros>0?`<div style="font-size:13px;color:var(--gray-600);margin-bottom:10px;">Juros compostos: ${l.juros}% ao mês</div>`:''
+    }
+    <div style="font-size:14px;font-weight:600;margin-bottom:8px;">Pagamentos</div>
+    ${pagRows}
+    <div style="display:flex;gap:8px;margin-top:16px;flex-wrap:wrap;">
+      <button class="btn btn-ghost" style="flex:1;" onclick="document.getElementById('modalDet').style.display='none';openAdd('${l.id}')">✏️ Editar</button>
+      ${!q?`<button class="btn btn-success" style="flex:1;" onclick="document.getElementById('modalDet').style.display='none';abrirPagamento('${l.id}')">💵 Pagar</button>`:''}
+      <button class="btn btn-danger" onclick="excluir('${l.id}')">🗑️</button>
+    </div>
+  `;
+  document.getElementById('modalDet').style.display='flex';
+}
+
+function excluir(id) {
+  if (!confirm('Excluir este empréstimo?')) return;
+  dados.emprestimos=dados.emprestimos.filter(l=>l.id!==id);
+  document.getElementById('modalDet').style.display='none';
+  render();
+  salvarDrive();
+  toast('🗑️ Excluído');
+}
+
+// ── GOOGLE DRIVE ─────────────────────────────────────────────────────────
+function setConnected(v) {
+  connected=v;
+  document.getElementById('driveDot').className='drive-dot '+(v?'on':'off');
+  document.getElementById('driveText').textContent=v?'✓ Google Drive conectado':'Não conectado ao Google Drive';
+  document.getElementById('driveConnectBtn').style.display=v?'none':'';
+  document.getElementById('topSub').textContent=v?'Dados salvos na nuvem':'Controle pessoal';
+}
+
+function handleAuth() {
+  if (CLIENT_ID==='SEU_GOOGLE_CLIENT_ID_AQUI') {
+    alert('⚠️ Configure seu Google Client ID no arquivo index.html antes de conectar.\n\nVeja o arquivo README.md para instruções.');
+    return;
+  }
+  if (!gapiOk||!gisOk) { toast('⏳ Carregando APIs...'); return; }
+  tokenClient.requestAccessToken();
+}
+
+window.onGapiLoad = function() {
+  gapi.load('client',async()=>{
+    await gapi.client.init({discoveryDocs:['https://www.googleapis.com/discovery/v1/apis/drive/v3/rest']});
+    gapiOk=true;
+  });
+};
+window.onGisLoad = function() {
+  if (CLIENT_ID==='SEU_GOOGLE_CLIENT_ID_AQUI') { gisOk=true; return; }
+  tokenClient=google.accounts.oauth2.initTokenClient({
+    client_id:CLIENT_ID, scope:SCOPES,
+    callback:async(resp)=>{
+      if(resp.error){ toast('❌ Erro: '+resp.error); return; }
+      setConnected(true);
+      await carregarDrive();
+    }
+  });
+  gisOk=true;
+};
+
+async function carregarDrive() {
+  try {
+    const r=await gapi.client.drive.files.list({spaces:'appDataFolder',q:`name='${FILE_NAME}'`,fields:'files(id,name)'});
+    const files=r.result.files;
+    if (files&&files.length) {
+      fileId=files[0].id;
+      const c=await gapi.client.request({path:`/drive/v3/files/${fileId}`,params:{alt:'media'}});
+      dados=JSON.parse(c.body);
+      toast('☁️ Dados carregados!');
+    } else {
+      toast('☁️ Pronto! Dados serão salvos na nuvem.');
+    }
+    render();
+  } catch(e){ toast('❌ Erro ao carregar: '+e.message); }
+}
+
+async function salvarDrive() {
+  if (!connected) return;
+  const token=gapi.client.getToken();
+  if (!token) return;
+  try {
+    const body=JSON.stringify(dados,null,2);
+    if (fileId) {
+      await fetch(`https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=media`,{
+        method:'PATCH',
+        headers:{Authorization:'Bearer '+token.access_token,'Content-Type':'application/json'},
+        body
+      });
+    } else {
+      const boundary='empbound';
+      const mp=`--${boundary}\r\nContent-Type: application/json\r\n\r\n${JSON.stringify({name:FILE_NAME,parents:['appDataFolder']})}\r\n--${boundary}\r\nContent-Type: application/json\r\n\r\n${body}\r\n--${boundary}--`;
+      const r=await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart',{
+        method:'POST',
+        headers:{Authorization:'Bearer '+token.access_token,'Content-Type':`multipart/related; boundary=${boundary}`},
+        body:mp
+      });
+      const j=await r.json();
+      fileId=j.id;
+    }
+  } catch(e){ toast('❌ Erro ao salvar'); }
+}
+
+// ── INIT ─────────────────────────────────────────────────────────────────
+const s1=document.createElement('script');
+s1.src='https://apis.google.com/js/api.js?onload=onGapiLoad';
+document.head.appendChild(s1);
+const s2=document.createElement('script');
+s2.src='https://accounts.google.com/gsi/client';
+s2.onload=onGisLoad;
+document.head.appendChild(s2);
+
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('sw.js').catch(()=>{});
+}
+
+render();
+</script>
+</body>
+</html>
